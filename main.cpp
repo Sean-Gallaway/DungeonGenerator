@@ -8,9 +8,9 @@
 #include <stack>
 #include <unordered_map>
 
-#define SIZE 10
-#define MIN_NUM_TILES (SIZE*SIZE)/2
-int arr[SIZE][SIZE];
+int SIZE = 10;
+int MIN_NUM_TILES = (SIZE*SIZE)/2;
+int** arr = nullptr;
 
 enum DIRECTIONS {
     UP = 0,
@@ -261,7 +261,7 @@ int traverse (const int x, const int y) {
         const int dx = ind % SIZE; // unflattened y coordinate
         const int dy = ind / SIZE; // unflattened x coordinate
         int di;
-        auto t = (TILES)arr[dx][dy];
+        auto t = static_cast<TILES>(arr[dx][dy]);
 
         // check if the left neighbor is available
         if (adjacencyList[t][LEFT] == 1 ) {
@@ -353,7 +353,7 @@ void create (const int sx, const int sy, const TILES tile) {
 
     std::vector<TILES> t1(TILES_SIZE);
     for (int a = 0; a < TILES_SIZE; a++) {
-        t1[a] = (TILES)a;
+        t1[a] = static_cast<TILES>(a);
     }
 
     std::random_device rd;
@@ -404,7 +404,15 @@ void create (const int sx, const int sy, const TILES tile) {
 long double calculateTime (std::chrono::time_point<std::chrono::high_resolution_clock>* start) {
     auto end = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - *start);
     *start = std::chrono::high_resolution_clock::now();
-    return (long double)end.count()/1000000.0;
+    return static_cast<long double>(end.count())/1000000.0;
+}
+
+void reset () {
+    if (arr != nullptr) {
+        for (int a = 0; a < SIZE; a++) {
+            memset(arr[a], -1, sizeof(int)*SIZE);
+        }
+    }
 }
 
 /**
@@ -413,7 +421,9 @@ long double calculateTime (std::chrono::time_point<std::chrono::high_resolution_
  */
 std::vector<double> trial () {
     // setup
-    memset(&arr[0][0], -1, sizeof(int)*SIZE*SIZE);
+    reset();
+
+
     auto start = std::chrono::high_resolution_clock::now();
     int i;
 
@@ -423,7 +433,7 @@ std::vector<double> trial () {
         i = traverseAndMask(0, 0);
         // if the amount of accessible tiles 'i' is not within the minimum, regenerate the dungeon and count again.
         if (i < MIN_NUM_TILES) {
-            memset(&arr[0][0], -1, sizeof(int)*SIZE*SIZE);
+            reset();
             create(0, 0, FOUR_WAY);
         }
         else {
@@ -438,7 +448,7 @@ std::vector<double> trial () {
     //     }
     //     std::cout << std::endl;
     // }
-    return {(double)calculateTime(&start), (double)i};
+    return {static_cast<double>(calculateTime(&start)), static_cast<double>(i)};
 }
 
 /**
@@ -449,21 +459,47 @@ void writeToFile (const std::string& fname) {
     std::ofstream file(fname);
     for (int a = SIZE-1; a >= 0; a--) {
         for (int b = 0; b < SIZE; b++) {
-            file << charset[arr[a][b]] << "  ";
+            if (charset[arr[a][b]] == charset[-1]) {
+                file << "   ";
+            }
+            else {
+                file << charset[arr[a][b]] << "  ";
+            }
         }
         file << std::endl;
     }
     file.close();
 }
 
-int main () {
+int main (int argc, char** argv) {
     //setup
     buildTileAdjacency();
     double averageRuntime = 0;
     double maxRun = INT_MIN;
     double minRun = INT_MAX;
     double averageRoomCount = 0;
+
     int amt = 1;
+    if (argc > 1) {
+        amt = std::stoi(argv[1]);
+    }
+
+    // if the user gave on the command line an arg for size, reallocate.
+    if (argc > 2) {
+        SIZE = std::stoi(argv[2]);
+        MIN_NUM_TILES = (SIZE*SIZE)/2;
+
+        arr = static_cast<int **>(malloc(sizeof(int *) * SIZE));
+        for (int a = 0; a < SIZE; a++) {
+            arr[a] = static_cast<int *>(malloc(sizeof(int) * SIZE));
+        }
+    }
+
+    if (arr == nullptr) {
+        std::cout << "Error occured in generation. dungeon is null" << std::endl;
+        return -1;
+    }
+
 
     // tester, generates 'amt' amount of dungeons and gathers statistics
     for (int a = 0; a < amt; a++) {
@@ -477,10 +513,17 @@ int main () {
     averageRoomCount /= amt;
 
     //
-    std::cout << averageRuntime << std::endl;
-    std::cout << "MAX: " << maxRun << "\tMin: " << minRun << std::endl;
-    std::cout << averageRoomCount << "/" << MIN_NUM_TILES << std::endl;
+    std::cout << "Amount of trials: " << amt << std::endl;
+    std::cout << "Average generation time: " << averageRuntime << std::endl;
+    std::cout << "MAX: " << maxRun << "\tMIN: " << minRun << std::endl;
+    std::cout << "Average room count " << averageRoomCount << "/" << MIN_NUM_TILES << std::endl;
     writeToFile("output.txt");
+
+    // free arr
+    for (int a = 0; a < SIZE; a++) {
+        free(arr[a]);
+    }
+    free(arr);
 
     return 0;
 }
