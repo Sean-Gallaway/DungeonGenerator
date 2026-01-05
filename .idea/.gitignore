@@ -6,3 +6,8 @@
 # Datasource local storage ignored files
 /dataSources/
 /dataSources.local.xml
+/DungeonGenerator.iml
+/editor.xml
+/misc.xml
+/modules.xml
+/vcs.xml
